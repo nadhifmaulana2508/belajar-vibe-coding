@@ -4,81 +4,81 @@ import { UsersService } from "../services/users.service";
 const usersService = new UsersService();
 
 export const usersRoutes = new Elysia({ prefix: "/api/users" })
+  .onError(({ code, error, set }) => {
+    if (error.message === "UNAUTHORIZED") {
+      set.status = 401;
+      return { message: "Unauthorized" };
+    }
+    if (error.message === "INVALID_CREDENTIALS") {
+      set.status = 401;
+      return { message: "Invalid credentials" };
+    }
+    if (error.message === "CONFLICT") {
+      set.status = 409;
+      return { message: "User already exists" };
+    }
+
+    if (code === "VALIDATION") {
+      set.status = 400;
+      return { 
+        message: "Validation failed", 
+        errors: error.all.map(e => ({ path: e.path, message: e.message }))
+      };
+    }
+
+    set.status = 500;
+    return { message: "Internal server error", detail: error.message };
+  })
   .derive(async ({ headers }) => {
     const authHeader = headers.authorization;
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return { user: null };
+      return { user: null, token: null };
     }
 
     const token = authHeader.split(" ")[1];
     if (!token) {
-      return { user: null };
+      return { user: null, token: null };
     }
 
     const user = await usersService.getUserByToken(token);
-    
-    return { user };
+    return { user, token };
   })
   .post("/", async ({ body }) => {
-    try {
-      const newUser = await usersService.registerUser(body);
-      return {
-        message: "User created successfully",
-        data: newUser,
-      };
-    } catch (error) {
-      const err = error as Error;
-      if (err.message === "User already exists") {
-        return { message: err.message };
-      }
-      return { message: "Internal server error", detail: err.message };
-    }
+    const newUser = await usersService.registerUser(body);
+    return {
+      message: "User created successfully",
+      data: newUser,
+    };
   }, {
     body: t.Object({
-      name: t.String(),
+      name: t.String({ minLength: 1 }),
       email: t.String({ format: "email" }),
-      password: t.String(),
+      password: t.String({ minLength: 8 }),
     })
   })
   .post("/login", async ({ body }) => {
-    try {
-      const token = await usersService.loginUser(body);
-      return {
-        message: "Successfully",
-        data: token,
-      };
-    } catch (error) {
-      const err = error as Error;
-      if (err.message === "Invalid credentials") {
-        return { message: err.message };
-      }
-      return { message: "Internal server error", detail: err.message };
-    }
+    const token = await usersService.loginUser(body);
+    return {
+      message: "Successfully",
+      data: token,
+    };
   }, {
     body: t.Object({
       email: t.String({ format: "email" }),
-      password: t.String(),
+      password: t.String({ minLength: 8 }),
     })
   })
-  .post("/current", async ({ user, set }) => {
-    if (!user) {
-      set.status = 401;
-      return { message: "Unauthorized" };
-    }
+  .get("/current", async ({ user }) => {
+    if (!user) throw new Error("UNAUTHORIZED");
 
     return {
       message: "Successfully",
       data: user,
     };
   })
-  .delete("/logout", async ({ user, headers, set }) => {
-    if (!user) {
-      set.status = 401;
-      return { message: "Unauthorized" };
-    }
+  .delete("/logout", async ({ user, token }) => {
+    if (!user || !token) throw new Error("UNAUTHORIZED");
 
-    const authHeader = headers.authorization;
-    const token = authHeader!.split(" ")[1]!;
     await usersService.logoutUser(token);
 
     return {
