@@ -4,6 +4,7 @@ import { UsersService } from "../services/users.service";
 const usersService = new UsersService();
 
 export const usersRoutes = new Elysia({ prefix: "/api/users" })
+  // Fix for TypeScript inference issues (See Issue #13)
   .onError(({ code, error, set }) => {
     const err = error as any;
     const message = err?.message || "";
