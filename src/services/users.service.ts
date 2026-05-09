@@ -66,4 +66,20 @@ export class UsersService {
 
     return token;
   }
+
+  async getUserByToken(token: string) {
+    // 1. Find session and join with user
+    const [result] = await db
+      .select({
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        createdAt: users.createdAt,
+      })
+      .from(session)
+      .innerJoin(users, eq(session.userId, users.id))
+      .where(eq(session.token, token));
+
+    return result || null;
+  }
 }

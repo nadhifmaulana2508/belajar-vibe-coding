@@ -4,6 +4,22 @@ import { UsersService } from "../services/users.service";
 const usersService = new UsersService();
 
 export const usersRoutes = new Elysia({ prefix: "/api/users" })
+  // Middleware for authentication
+  .derive(async ({ headers, set }) => {
+    const authHeader = headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return { user: null };
+    }
+
+    const token = authHeader.split(" ")[1];
+    const user = await usersService.getUserByToken(token);
+    
+    if (!user) {
+      return { user: null };
+    }
+
+    return { user };
+  })
   .post("/", async ({ body, set }) => {
     try {
       const newUser = await usersService.registerUser(body);
@@ -48,4 +64,15 @@ export const usersRoutes = new Elysia({ prefix: "/api/users" })
       email: t.String({ format: "email" }),
       password: t.String(),
     })
+  })
+  .post("/current", async ({ user, set }) => {
+    if (!user) {
+      set.status = 401;
+      return { message: "Unauthorized" };
+    }
+
+    return {
+      message: "Successfully",
+      data: user,
+    };
   });
