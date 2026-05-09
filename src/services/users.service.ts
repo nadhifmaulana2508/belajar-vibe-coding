@@ -1,6 +1,14 @@
 import { db } from "../../db";
+
 import { users, session } from "../../db/schema";
 import { eq } from "drizzle-orm";
+
+export interface UserProfile {
+  id: number;
+  name: string;
+  email: string;
+  createdAt: Date | null;
+}
 
 export class UsersService {
   async registerUser(data: typeof users.$inferInsert) {
@@ -67,9 +75,9 @@ export class UsersService {
     return token;
   }
 
-  async getUserByToken(token: string) {
+  async getUserByToken(token: string): Promise<UserProfile | null> {
     // 1. Find session and join with user
-    const [result] = await db
+    const results = await db
       .select({
         id: users.id,
         name: users.name,
@@ -80,6 +88,6 @@ export class UsersService {
       .innerJoin(users, eq(session.userId, users.id))
       .where(eq(session.token, token));
 
-    return result || null;
+    return results[0] || null;
   }
 }
