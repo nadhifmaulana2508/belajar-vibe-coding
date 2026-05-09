@@ -26,4 +26,26 @@ export const usersRoutes = new Elysia({ prefix: "/api/users" })
       email: t.String({ format: "email" }),
       password: t.String(),
     })
+  })
+  .post("/login", async ({ body, set }) => {
+    try {
+      const token = await usersService.loginUser(body);
+      return {
+        message: "Successfully",
+        data: token,
+      };
+    } catch (error) {
+      const err = error as Error;
+      if (err.message === "Invalid credentials") {
+        set.status = 401;
+        return { message: err.message };
+      }
+      set.status = 500;
+      return { message: "Internal server error", detail: err.message };
+    }
+  }, {
+    body: t.Object({
+      email: t.String({ format: "email" }),
+      password: t.String(),
+    })
   });
