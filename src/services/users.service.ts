@@ -1,5 +1,5 @@
 import { db } from "../../db";
-import { users } from "../../db/schema";
+import { users, session } from "../../db/schema";
 import { eq } from "drizzle-orm";
 
 export class UsersService {
@@ -35,5 +35,35 @@ export class UsersService {
       .where(eq(users.email, data.email));
 
     return newUser;
+  }
+
+  async loginUser(data: Pick<typeof users.$inferInsert, "email" | "password">) {
+    // 1. Find user by email
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, data.email));
+
+    if (!user) {
+      throw new Error("Invalid credentials");
+    }
+
+    // 2. Verify password
+    const isPasswordValid = await Bun.password.verify(data.password, user.password);
+
+    if (!isPasswordValid) {
+      throw new Error("Invalid credentials");
+    }
+
+    // 3. Generate token
+    const token = crypto.randomUUID();
+
+    // 4. Create session
+    await db.insert(session).values({
+      token,
+      userId: user.id,
+    });
+
+    return token;
   }
 }
