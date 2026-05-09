@@ -1,5 +1,4 @@
 import { db } from "../../db";
-
 import { users, session } from "../../db/schema";
 import { eq } from "drizzle-orm";
 
@@ -19,7 +18,7 @@ export class UsersService {
       .where(eq(users.email, data.email));
 
     if (existingUser) {
-      throw new Error("User already exists");
+      throw new Error("CONFLICT");
     }
 
     // 2. Hash password
@@ -53,14 +52,14 @@ export class UsersService {
       .where(eq(users.email, data.email));
 
     if (!user) {
-      throw new Error("Invalid credentials");
+      throw new Error("INVALID_CREDENTIALS");
     }
 
     // 2. Verify password
     const isPasswordValid = await Bun.password.verify(data.password, user.password);
 
     if (!isPasswordValid) {
-      throw new Error("Invalid credentials");
+      throw new Error("INVALID_CREDENTIALS");
     }
 
     // 3. Generate token
