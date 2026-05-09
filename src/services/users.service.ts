@@ -90,4 +90,8 @@ export class UsersService {
 
     return results[0] || null;
   }
+
+  async logoutUser(token: string) {
+    await db.delete(session).where(eq(session.token, token));
+  }
 }
